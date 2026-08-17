@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useRef, type ChangeEvent, type FormEvent } from 'react';
+import { Select } from '@/components/ui/Select';
 
 interface LeadsFilterFormProps {
   industries: readonly string[];
@@ -45,61 +46,41 @@ export function LeadsFilterForm({ industries, stages, statuses, journeyStages }:
         className="w-64 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-sky-400 focus:outline-none"
       />
 
-      <select
-        name="journey"
-        defaultValue={searchParams.get('journey') ?? ''}
-        onChange={handleSelectChange}
-        className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-sky-400 focus:outline-none"
-      >
+      <Select name="journey" defaultValue={searchParams.get('journey') ?? ''} onChange={handleSelectChange}>
         <option value="">All Journey Stages</option>
         {journeyStages.map((stage) => (
           <option key={stage.value} value={stage.value}>
             {stage.label}
           </option>
         ))}
-      </select>
+      </Select>
 
-      <select
-        name="industry"
-        defaultValue={searchParams.get('industry') ?? ''}
-        onChange={handleSelectChange}
-        className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-sky-400 focus:outline-none"
-      >
+      <Select name="industry" defaultValue={searchParams.get('industry') ?? ''} onChange={handleSelectChange}>
         <option value="">All Industries</option>
         {industries.map((industry) => (
           <option key={industry} value={industry}>
             {industry}
           </option>
         ))}
-      </select>
+      </Select>
 
-      <select
-        name="stage"
-        defaultValue={searchParams.get('stage') ?? ''}
-        onChange={handleSelectChange}
-        className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-sky-400 focus:outline-none"
-      >
+      <Select name="stage" defaultValue={searchParams.get('stage') ?? ''} onChange={handleSelectChange}>
         <option value="">All Stages</option>
         {stages.map((stage) => (
           <option key={stage.key} value={stage.key}>
             {stage.name}
           </option>
         ))}
-      </select>
+      </Select>
 
-      <select
-        name="status"
-        defaultValue={searchParams.get('status') ?? ''}
-        onChange={handleSelectChange}
-        className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-sky-400 focus:outline-none"
-      >
+      <Select name="status" defaultValue={searchParams.get('status') ?? ''} onChange={handleSelectChange}>
         <option value="">All Statuses</option>
         {statuses.map((status) => (
           <option key={status.value} value={status.value}>
             {status.label}
           </option>
         ))}
-      </select>
+      </Select>
 
       <button
         type="submit"

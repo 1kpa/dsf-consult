@@ -90,7 +90,7 @@ export function PipelineCard({ lead, stages, currentStageId, onMove }: PipelineC
             const stage = stages.find((s) => s.id === e.target.value);
             if (stage) onMove(lead.id, stage.key);
           }}
-          className="w-full rounded border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-slate-300 focus:border-sky-400 focus:outline-none"
+          className="w-full rounded border border-white/10 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
         >
           {stages.map((stage) => (
             <option key={stage.id} value={stage.id}>

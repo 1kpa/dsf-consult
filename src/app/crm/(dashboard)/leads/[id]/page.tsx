@@ -2,10 +2,11 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
-import { formatDate, formatDateTime, isOverdue } from '@/lib/format';
+import { formatDate, formatDateTime, formatMoney, isOverdue } from '@/lib/format';
 import { currentSituationSummary, qualificationFields } from '@/lib/lead-display';
 import { StatusBadge } from '@/components/crm/StatusBadge';
 import { JourneyStageBadge } from '@/components/crm/JourneyStageBadge';
+import { InvoiceStatusBadge } from '@/components/crm/InvoiceStatusBadge';
 import { LeadActionsPanel } from '@/components/crm/lead-detail/LeadActionsPanel';
 import { NoteForm } from '@/components/crm/lead-detail/NoteForm';
 import { FollowUpForm } from '@/components/crm/lead-detail/FollowUpForm';
@@ -26,7 +27,7 @@ export async function generateMetadata({ params }: LeadDetailPageProps): Promise
 export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
   const { id } = await params;
 
-  const [lead, stages] = await Promise.all([
+  const [lead, stages, invoices, invoiceAgg] = await Promise.all([
     prisma.lead.findUnique({
       where: { id },
       include: {
@@ -39,11 +40,30 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
       },
     }),
     prisma.pipelineStage.findMany({ orderBy: { order: 'asc' } }),
+    prisma.invoice.findMany({
+      where: { leadId: id },
+      orderBy: { issueDate: 'desc' },
+      take: 5,
+      select: { id: true, invoiceNumber: true, status: true, totalAmount: true, amountOutstanding: true, currency: true, issueDate: true },
+    }),
+    prisma.invoice.aggregate({
+      where: { leadId: id, status: { not: 'CANCELLED' } },
+      _sum: { totalAmount: true, amountPaid: true, amountOutstanding: true },
+      _count: { _all: true },
+    }),
   ]);
 
   if (!lead) {
     notFound();
   }
+
+  const financialSummary = {
+    totalInvoiced: invoiceAgg._sum.totalAmount?.toNumber() ?? 0,
+    totalPaid: invoiceAgg._sum.amountPaid?.toNumber() ?? 0,
+    outstanding: invoiceAgg._sum.amountOutstanding?.toNumber() ?? 0,
+    invoiceCount: invoiceAgg._count._all,
+  };
+  const financeCurrency = invoices[0]?.currency ?? 'CAD';
 
   const overdue = isOverdue(lead.nextFollowUpAt);
   const situation = currentSituationSummary(lead);
@@ -224,6 +244,48 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
             currentStatus={lead.status}
             stages={stages}
           />
+
+          <section className="space-y-4 rounded-xl border border-white/10 bg-white/[0.03] p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-300">Financial Summary</h2>
+              <Link
+                href={`/crm/invoices/new?leadId=${lead.id}`}
+                className="rounded-lg border border-sky-400/30 bg-sky-500/10 px-2.5 py-1 text-xs font-medium text-sky-300 hover:bg-sky-500/20"
+              >
+                Create Invoice
+              </Link>
+            </div>
+            <dl className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <dt className="text-xs text-slate-500">Total Invoiced</dt>
+                <dd className="mt-0.5 text-white">{formatMoney(financialSummary.totalInvoiced, financeCurrency)}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-slate-500">Total Paid</dt>
+                <dd className="mt-0.5 text-emerald-300">{formatMoney(financialSummary.totalPaid, financeCurrency)}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-slate-500">Outstanding</dt>
+                <dd className="mt-0.5 text-rose-300">{formatMoney(financialSummary.outstanding, financeCurrency)}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-slate-500"># Invoices</dt>
+                <dd className="mt-0.5 text-white">{financialSummary.invoiceCount}</dd>
+              </div>
+            </dl>
+            {invoices.length > 0 && (
+              <ul className="space-y-2 border-t border-white/10 pt-3">
+                {invoices.map((invoice) => (
+                  <li key={invoice.id}>
+                    <Link href={`/crm/invoices/${invoice.id}`} className="flex items-center justify-between text-xs hover:text-sky-300">
+                      <span className="text-slate-300">{invoice.invoiceNumber}</span>
+                      <InvoiceStatusBadge status={invoice.status} />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
 
           <section className="space-y-4 rounded-xl border border-white/10 bg-white/[0.03] p-5">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-300">Follow-Up</h2>

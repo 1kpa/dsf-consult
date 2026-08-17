@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { LEAD_STATUS_LABELS, FOLLOW_UP_TYPE_LABELS } from '@/lib/pipeline';
+import { Select } from '@/components/ui/Select';
 
 interface LeadActionsPanelProps {
   leadId: string;
@@ -49,11 +50,11 @@ export function LeadActionsPanel({ leadId, currentStageKey, currentStatus, stage
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-400">Pipeline Stage</label>
-          <select
+          <Select
             defaultValue={currentStageKey ?? ''}
             disabled={pending !== null}
             onChange={(e) => run('stage', { pipelineStageKey: e.target.value })}
-            className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-sky-400 focus:outline-none"
+            className="w-full"
           >
             <option value="" disabled>
               Select stage…
@@ -63,23 +64,23 @@ export function LeadActionsPanel({ leadId, currentStageKey, currentStatus, stage
                 {stage.name}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
 
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-400">Status</label>
-          <select
+          <Select
             defaultValue={currentStatus}
             disabled={pending !== null}
             onChange={(e) => run('status', { status: e.target.value })}
-            className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-sky-400 focus:outline-none"
+            className="w-full"
           >
             {Object.entries(LEAD_STATUS_LABELS).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
       </div>
 

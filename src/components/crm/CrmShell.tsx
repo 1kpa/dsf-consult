@@ -13,6 +13,8 @@ const NAV_LINKS = [
   { href: '/crm', label: 'Dashboard' },
   { href: '/crm/leads', label: 'Leads' },
   { href: '/crm/pipeline', label: 'Pipeline' },
+  { href: '/crm/invoices', label: 'Invoices' },
+  { href: '/crm/finance', label: 'Finance' },
 ];
 
 export function CrmShell({ user, children }: CrmShellProps) {

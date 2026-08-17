@@ -14,6 +14,10 @@ export function isOverdue(date: Date | string | null): boolean {
   return d.getTime() < Date.now();
 }
 
+export function formatMoney(amount: number, currency: string = 'CAD'): string {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
+}
+
 export function leadAge(createdAt: Date | string): string {
   const d = typeof createdAt === 'string' ? new Date(createdAt) : createdAt;
   const ms = Date.now() - d.getTime();

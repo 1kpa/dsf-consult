@@ -38,6 +38,36 @@
   a {
     @apply transition-colors duration-200;
   }
+
+  /*
+   * Native <select> dropdowns (used throughout the CRM) default to the
+   * browser/OS's light popup styling, which the page's own dark theme can't
+   * reach — the open option list is rendered outside the page's stacking
+   * context. `color-scheme: dark` tells the browser to pick dark-appropriate
+   * defaults for the popup itself; the explicit option colors below are the
+   * belt-and-suspenders fallback for engines that ignore that hint.
+   */
+  select {
+    color-scheme: dark;
+  }
+
+  select option,
+  select optgroup {
+    background-color: #0f172a; /* slate-900 */
+    color: #f1f5f9; /* slate-100 */
+  }
+
+  select option:checked,
+  select option:hover,
+  select option:focus {
+    background-color: #0369a1; /* sky-700 */
+    color: #ffffff;
+  }
+
+  select option:disabled {
+    color: #64748b; /* slate-500 — still readable, clearly de-emphasized */
+    background-color: #0f172a;
+  }
 }
 
 @layer components {

@@ -1,9 +1,12 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
-import { formatDateTime, isOverdue } from '@/lib/format';
+import { formatDateTime, formatMoney, isOverdue } from '@/lib/format';
 import { StatusBadge } from '@/components/crm/StatusBadge';
 import { JourneyStageBadge } from '@/components/crm/JourneyStageBadge';
+import { getFinanceSummary } from '@/lib/services/finance-metrics';
+import { refreshOverdueInvoices } from '@/lib/services/overdue';
+import { invoiceSettings } from '@/lib/settings/invoice';
 
 export const metadata: Metadata = { title: 'Dashboard — DSF Consult CRM' };
 export const dynamic = 'force-dynamic';
@@ -39,7 +42,11 @@ export default async function CrmDashboardPage({ searchParams }: DashboardPagePr
   const since = rangeToDate(range);
   const createdAtFilter = since ? { createdAt: { gte: since } } : {};
 
-  const [statusCounts, journeyCounts, newAssessmentCount, appointmentCount, recentLeads, recentActivity, upcomingFollowUps] =
+  const startOfThisMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+
+  await refreshOverdueInvoices();
+
+  const [statusCounts, journeyCounts, newAssessmentCount, appointmentCount, recentLeads, recentActivity, upcomingFollowUps, financeSummary] =
     await Promise.all([
       prisma.lead.groupBy({ by: ['status'], where: createdAtFilter, _count: { _all: true } }),
       prisma.lead.groupBy({ by: ['journeyStage'], where: createdAtFilter, _count: { _all: true } }),
@@ -61,6 +68,7 @@ export default async function CrmDashboardPage({ searchParams }: DashboardPagePr
         take: 6,
         select: { id: true, firstName: true, lastName: true, businessName: true, nextFollowUpAt: true, nextFollowUpType: true },
       }),
+      getFinanceSummary({ gte: startOfThisMonth }),
     ]);
 
   const counts = Object.fromEntries(statusCounts.map((row) => [row.status, row._count._all]));
@@ -132,6 +140,33 @@ export default async function CrmDashboardPage({ searchParams }: DashboardPagePr
           ))}
         </div>
       </div>
+
+      <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-300">Finance This Month</h2>
+          <Link href="/crm/finance" className="text-xs font-medium text-sky-300 hover:text-sky-200">
+            View Finance Dashboard →
+          </Link>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div>
+            <div className="text-lg font-bold text-white">{formatMoney(financeSummary.totalRevenue, invoiceSettings.defaultCurrency)}</div>
+            <div className="mt-0.5 text-xs uppercase tracking-wide text-slate-400">Revenue This Month</div>
+          </div>
+          <div>
+            <div className="text-lg font-bold text-emerald-300">{formatMoney(financeSummary.paid, invoiceSettings.defaultCurrency)}</div>
+            <div className="mt-0.5 text-xs uppercase tracking-wide text-slate-400">Paid This Month</div>
+          </div>
+          <div>
+            <div className="text-lg font-bold text-amber-300">{formatMoney(financeSummary.outstanding, invoiceSettings.defaultCurrency)}</div>
+            <div className="mt-0.5 text-xs uppercase tracking-wide text-slate-400">Outstanding</div>
+          </div>
+          <div>
+            <div className="text-lg font-bold text-rose-300">{formatMoney(financeSummary.overdue, invoiceSettings.defaultCurrency)}</div>
+            <div className="mt-0.5 text-xs uppercase tracking-wide text-slate-400">Overdue</div>
+          </div>
+        </div>
+      </section>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5 lg:col-span-1">

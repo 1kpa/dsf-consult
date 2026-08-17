@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { FOLLOW_UP_TYPE_LABELS } from '@/lib/pipeline';
+import { Select } from '@/components/ui/Select';
 
 const APPOINTMENT_TYPES = ['MEETING', 'CALL', 'EMAIL', 'SMS', 'OTHER'] as const;
 
@@ -55,17 +56,13 @@ export function AppointmentForm({ leadId }: { leadId: string }) {
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-400">Type</label>
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value as (typeof APPOINTMENT_TYPES)[number])}
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-sky-400 focus:outline-none"
-          >
+          <Select value={type} onChange={(e) => setType(e.target.value as (typeof APPOINTMENT_TYPES)[number])}>
             {APPOINTMENT_TYPES.map((t) => (
               <option key={t} value={t}>
                 {FOLLOW_UP_TYPE_LABELS[t]}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <button
           type="submit"
