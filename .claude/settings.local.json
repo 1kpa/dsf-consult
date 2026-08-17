@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npx tsc *)",
+      "Bash(rm -f /tmp/probe.tsx)",
+      "Bash(cat)",
+      "Bash(curl -s -o /tmp/home.html -w \"HTTP %{http_code}\\\\n\" http://localhost:4173/)",
+      "Read(//tmp/**)",
+      "Bash(curl -s http://localhost:4173/ -o /tmp/home.html -w \"HTTP %{http_code}\\\\n\")"
+    ]
+  }
+}

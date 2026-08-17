@@ -1,0 +1,265 @@
+// DSF Consult — Prisma schema
+// Local dev: point DATABASE_URL at a local Postgres instance (see .env.example).
+// Production target: Railway PostgreSQL (deployment happens in a later phase).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Connection URL lives in prisma.config.ts (Prisma 7 moved it out of the
+// schema file) for Migrate/CLI use, and is passed to the PrismaPg driver
+// adapter in src/lib/prisma.ts for the actual runtime client.
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  ADMIN
+  AGENT
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  NURTURE
+  WON
+  LOST
+}
+
+/// Where the CUSTOMER is in their business journey — distinct from
+/// PipelineStage, which describes where the LEAD is in DSF's sales process.
+enum JourneyStage {
+  ASPIRING_FOUNDER
+  EARLY_STAGE
+  GROWTH
+  SYSTEMIZATION
+  SCALING
+  UNSURE
+}
+
+enum FollowUpType {
+  CALL
+  EMAIL
+  SMS
+  MEETING
+  OTHER
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELED
+}
+
+enum ActivityType {
+  SUBMISSION
+  STAGE_CHANGE
+  STATUS_CHANGE
+  NOTE
+  FOLLOW_UP_SCHEDULED
+  CONTACT_RECORDED
+  APPOINTMENT_CREATED
+  ASSIGNMENT
+  WON
+  LOST
+  SYSTEM
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+/// Internal CRM users (manually seeded — no public registration).
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(AGENT)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assignedLeads Lead[]         @relation("LeadAssignedTo")
+  activities    LeadActivity[]
+  notes         LeadNote[]
+
+  @@map("users")
+}
+
+/// A prospective client's business, as understood by the CRM (separate from
+/// the free-text businessName snapshot captured on the Lead at submission time).
+model Business {
+  id        String   @id @default(cuid())
+  name      String
+  industry  String?
+  website   String?
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leads Lead[]
+
+  @@map("businesses")
+}
+
+/// Marketing/lead-source taxonomy used for CRM-side classification and reporting.
+model LeadSource {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  name      String
+  createdAt DateTime @default(now())
+
+  leads Lead[]
+
+  @@map("lead_sources")
+}
+
+/// Kanban pipeline columns. Seeded and reorderable — not a hardcoded enum —
+/// so the CRM team can adjust the sales process without a migration.
+model PipelineStage {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  name      String
+  order     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leads Lead[]
+
+  @@map("pipeline_stages")
+}
+
+model Lead {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  firstName String
+  lastName  String
+  email     String  @unique
+  phone     String
+
+  // Where the customer is in their business journey (Growth Assessment Q1).
+  // Nullable: existing pre-Phase-4 leads never answered this.
+  journeyStage JourneyStage?
+
+  // Nullable because aspiring founders (no business yet) don't have one.
+  businessName String?
+  businessId   String?
+  business     Business? @relation(fields: [businessId], references: [id])
+
+  // Shared/legacy qualification fields (existing-business branches +,
+  // partially, early-stage). Nullable since not every journey branch asks
+  // every question — see PHASE 4 branching logic in lib/validation/lead.ts.
+  industry           String?
+  monthlyLeadVolume  String?
+  currentLeadProcess String?
+  primaryChallenge   String?
+  message            String?
+
+  // Aspiring-founder branch
+  businessIdeaStatus  String?
+  skillsAndExperience String?
+  desiredSupport      String[] @default([])
+  primaryGoal         String?
+  startTimeline       String?
+
+  // Early-stage branch
+  currentOffer               String?
+  hasWebsite                 String?
+  hasCRM                     String?
+  hasCustomers                String?
+  customerAcquisitionSources String?
+
+  // Existing-business branch addition (Growth / Systemization / Scaling)
+  desiredOutcome String?
+
+  // Automatically-generated sales-conversation tags (see lib/services/tags.ts).
+  tags String[] @default([])
+
+  // Raw source/attribution metadata captured at submission time.
+  source       String?
+  utmSource    String?
+  utmMedium    String?
+  utmCampaign  String?
+  landingPage  String?
+
+  leadSourceId String?
+  leadSource   LeadSource? @relation(fields: [leadSourceId], references: [id])
+
+  status          LeadStatus @default(NEW)
+  pipelineStageId String?
+  pipelineStage   PipelineStage? @relation(fields: [pipelineStageId], references: [id])
+
+  assignedToId String?
+  assignedTo   User?   @relation("LeadAssignedTo", fields: [assignedToId], references: [id])
+
+  lastContactedAt  DateTime?
+  nextFollowUpAt   DateTime?
+  nextFollowUpType FollowUpType?
+
+  activities   LeadActivity[]
+  notes        LeadNote[]
+  appointments Appointment[]
+
+  @@index([status])
+  @@index([pipelineStageId])
+  @@index([assignedToId])
+  @@index([nextFollowUpAt])
+  @@index([journeyStage])
+  @@map("leads")
+}
+
+/// Immutable audit trail for everything meaningful that happens to a lead.
+model LeadActivity {
+  id       String       @id @default(cuid())
+  leadId   String
+  lead     Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  type     ActivityType
+  message  String
+  metadata Json?
+
+  // Null userId = system-generated activity (e.g. the public form submission).
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([leadId, createdAt])
+  @@map("lead_activities")
+}
+
+model LeadNote {
+  id       String @id @default(cuid())
+  leadId   String
+  lead     Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+  content  String
+
+  createdAt DateTime @default(now())
+
+  @@index([leadId, createdAt])
+  @@map("lead_notes")
+}
+
+model Appointment {
+  id           String            @id @default(cuid())
+  leadId       String
+  lead         Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  scheduledFor DateTime
+  type         FollowUpType      @default(MEETING)
+  status       AppointmentStatus @default(SCHEDULED)
+  notes        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leadId])
+  @@map("appointments")
+}
